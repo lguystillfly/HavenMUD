@@ -15,25 +15,25 @@ namespace MTD.Haven.Server
 {
     public class Connection
     {
-        static object BigLock = new object();
-        Socket socket;
-        public StreamReader Reader;
-        public StreamWriter Writer;
-        static List<Connection> connections = new List<Connection>();
-        public string playerLogin;
-        public Player Player;
+        static object _bigLock = new object();
+        Socket _socket;
+        public StreamReader _reader;
+        public StreamWriter _writer;
+        static List<Connection> _connections = new List<Connection>();
+        public string _playerLogin;
+        public Player _player;
 
         private readonly IPlayerManager _playerManager;
 
         public Connection(Socket socket, IPlayerManager playerManager)
         {
-            socket = socket;
-            Reader = new StreamReader(new NetworkStream(socket, false));
-            Writer = new StreamWriter(new NetworkStream(socket, true));
+            _socket = socket;
+            _reader = new StreamReader(new NetworkStream(socket, false));
+            _writer = new StreamWriter(new NetworkStream(socket, true));
             new Thread(ClientLoop).Start();
             new Thread(ServerLoop).Start();
-            playerLogin = "";
-            Player = new Player();
+            _playerLogin = "";
+            _player = new Player();
             _playerManager = playerManager;
         }
 
@@ -53,10 +53,10 @@ namespace MTD.Haven.Server
                 {
                     minute = 0;
 
-                    foreach(var connection in connections)
+                    foreach(var connection in _connections)
                     {
-                        connection.Writer.WriteLine($"{DateTime.UtcNow} - Another minute has passed.");
-                        connection.Writer.Flush();
+                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another minute has passed.");
+                        connection._writer.Flush();
                     }
                 }
 
@@ -64,10 +64,10 @@ namespace MTD.Haven.Server
                 {
                     half = 0;
 
-                    foreach (var connection in connections)
+                    foreach (var connection in _connections)
                     {
-                        connection.Writer.WriteLine($"{DateTime.UtcNow} - Another half hour has passed.");
-                        connection.Writer.Flush();
+                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another half hour has passed.");
+                        connection._writer.Flush();
                     }
                 }
 
@@ -75,10 +75,10 @@ namespace MTD.Haven.Server
                 {
                     hour = 0;
 
-                    foreach (var connection in connections)
+                    foreach (var connection in _connections)
                     {
-                        connection.Writer.WriteLine($"{DateTime.UtcNow} - Another hour has passed.");
-                        connection.Writer.Flush();
+                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another hour has passed.");
+                        connection._writer.Flush();
                     }
                 }
                 Console.WriteLine(minute);
@@ -90,27 +90,27 @@ namespace MTD.Haven.Server
         {
             try
             {
-                lock (BigLock)
+                lock (_bigLock)
                 {
                     OnConnect();
                 }
                 while (true)
                 {
-                    lock (BigLock)
+                    lock (_bigLock)
                     {
-                        foreach (Connection conn in connections)
+                        foreach (Connection conn in _connections)
                         {
-                            conn.Writer.Flush();
+                            conn._writer.Flush();
                         }
                     }
 
-                    string line = Reader.ReadLine();
+                    string line = _reader.ReadLine();
                     if (line == null)
                     {
                         break;
                     }
 
-                    lock (BigLock)
+                    lock (_bigLock)
                     {
                         ProcessLine(line);
                     }
@@ -122,11 +122,11 @@ namespace MTD.Haven.Server
             }
             finally
             {
-                lock (BigLock)
+                lock (_bigLock)
                 {
-                    if (socket != null)
+                    if (_socket != null)
                     {
-                        socket.Close();
+                        _socket.Close();
                     }
 
                     OnDisconnect();
@@ -136,41 +136,41 @@ namespace MTD.Haven.Server
 
         void OnConnect()
         {
-            Writer.WriteLine("Please enter your name: ");
-            Writer.Flush();
-            playerLogin = Reader.ReadLine();
+            _writer.WriteLine("Please enter your name: ");
+            _writer.Flush();
+            _playerLogin = _reader.ReadLine();
 
             try
             {
-                Player = _playerManager.GetPlayerByName(playerLogin);
+                _player = _playerManager.GetPlayerByName(_playerLogin);
 
-                if (Player == null)
+                if (_player == null)
                 {
                     throw new Exception();
                 }
 
-                Player.IsOnline = true;
-                Player.LastLogin = DateTime.UtcNow;
+                _player.IsOnline = true;
+                _player.LastLogin = DateTime.UtcNow;
             }
             catch(Exception)
             {
-                Player.Id = Guid.NewGuid();
-                Player.Name = playerLogin;
-                Player.Title = "is here.";
-                Player.CreatedDate = DateTime.UtcNow;
-                Player.ModifiedDate = DateTime.UtcNow;
-                Player.LastLogin = DateTime.UtcNow;
-                Player.CurrentRoom = 1;
-                Player.IsOnline = true;
+                _player.Id = Guid.NewGuid();
+                _player.Name = _playerLogin;
+                _player.Title = "is here.";
+                _player.CreatedDate = DateTime.UtcNow;
+                _player.ModifiedDate = DateTime.UtcNow;
+                _player.LastLogin = DateTime.UtcNow;
+                _player.CurrentRoom = 1;
+                _player.IsOnline = true;
             }
 
-            SavePlayer(Player);
+            SavePlayer(_player);
 
-            Writer.WriteLine($"Welcome, {Player.Name}!");
+            _writer.WriteLine($"Welcome, {_player.Name}!");
 
-            DisplayRoom(Player.CurrentRoom);
+            DisplayRoom(_player.CurrentRoom);
 
-            connections.Add(this);
+            _connections.Add(this);
         }
 
         public void DisplayRoom(int id)
@@ -199,7 +199,7 @@ namespace MTD.Haven.Server
             builder.AppendLine("Also here: ");
 
             bool containsOthers = false;
-            foreach(var player in GetOnlinePlayersInRoom(Player.CurrentRoom).Where(p => p.Id != Player.Id))
+            foreach(var player in GetOnlinePlayersInRoom(_player.CurrentRoom).Where(p => p.Id != _player.Id))
             {
                 builder.AppendLine(player.Name);
                 containsOthers = true;
@@ -210,14 +210,14 @@ namespace MTD.Haven.Server
                 builder.AppendLine("No one");
             }
 
-            Writer.WriteLine(builder.ToString());
+            _writer.WriteLine(builder.ToString());
         }
 
         void OnDisconnect()
         {
-            Player.IsOnline = false;
-            SavePlayer(Player);
-            connections.Remove(this);
+            _player.IsOnline = false;
+            SavePlayer(_player);
+            _connections.Remove(this);
         }
 
         void ProcessLine(string line)
@@ -226,42 +226,43 @@ namespace MTD.Haven.Server
             {
                 var builder = new StringBuilder();
                 builder.AppendLine("-=-=-=-=-=-=-=-=-=[ Haven Users ]=-=-=-=-=-=-=-=-=-");
-                foreach (var connection in connections)
+                foreach (var connection in _connections)
                 {
-                    builder.AppendLine($"{connection.Player.Name} - {connection.Player.Title}");
+                    builder.AppendLine($"{connection._player.Name} - {connection._player.Title}");
                 }
                 builder.AppendLine("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
-                builder.AppendLine($"{connections.Count} players online.");
+                builder.AppendLine($"{_connections.Count} players online.");
 
-                Writer.WriteLine(builder.ToString());
+                _writer.WriteLine(builder.ToString());
             }
             else if(line.ToLower().StartsWith("say "))
             {
-                foreach (Connection conn in connections)
+                foreach (Connection conn in _connections)
                 {
-                    conn.Writer.WriteLine($"{Player.Name} says, '{line.Replace("say ", "").Trim()}'");
+                    if (conn._player.CurrentRoom == _player.CurrentRoom)
+                    {
+                        conn._writer.WriteLine($"{_player.Name} says, '{line.Replace("say ", "").Trim()}'");
+                    }
                 }
             }
             else if(line.ToLower().StartsWith("title "))
             {
                 var title = line.Replace("title ", "");
 
-                Player.Title = title;
-                File.WriteAllText($"{Constants.PlayerDirectory}{playerLogin}.json", JsonConvert.SerializeObject(Player));
+                _player.Title = title;
+                File.WriteAllText($"{Constants.PlayerDirectory}{_playerLogin}.json", JsonConvert.SerializeObject(_player));
 
-                Writer.WriteLine("Your new title has been set.");
+                _writer.WriteLine("Your new title has been set.");
             }
             else if(line.ToLower().Equals("look"))
             {
-                DisplayRoom(Player.CurrentRoom);
+                DisplayRoom(_player.CurrentRoom);
             }
             else
             {
-                Writer.WriteLine("Unknown Command.");
+                _writer.WriteLine("Unknown Command.");
             }
         }
-
-
 
         public Player SavePlayer(Player player)
         {
