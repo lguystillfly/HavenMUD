@@ -13,7 +13,7 @@ using System.Threading;
 
 namespace MTD.Haven.Server
 {
-    public class Connection
+    public class Connection : IDisposable
     {
         static object _bigLock = new object();
         private readonly Socket _socket;
@@ -242,6 +242,13 @@ namespace MTD.Haven.Server
         public Room GetRoomById(int id)
         {
             return JsonConvert.DeserializeObject<Room>(File.ReadAllText($"{Constants.RoomDirectory}{id}.json"));
+        }
+
+        public void Dispose()
+        {
+            _socket?.Dispose();
+            _reader?.Dispose();
+            _writer?.Dispose();
         }
     }
 }

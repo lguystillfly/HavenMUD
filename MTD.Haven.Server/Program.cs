@@ -13,8 +13,8 @@ namespace MTD.Haven.Server
 {
     class Program
     {
-        const int PortNumber = 4000;
-        const int BacklogSize = 20;
+        private const int PortNumber = 4000;
+        private const int BacklogSize = 20;
 
         static Connection _connection;
 
