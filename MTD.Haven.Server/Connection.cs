@@ -17,11 +17,11 @@ namespace MTD.Haven.Server
     {
         static object _bigLock = new object();
         Socket _socket;
-        public StreamReader _reader;
-        public StreamWriter _writer;
-        static List<Connection> _connections = new List<Connection>();
-        public string _playerLogin;
-        public Player _player;
+        private StreamReader _reader;
+        private StreamWriter _writer;
+        private List<Connection> _connections = new List<Connection>();
+        private string _playerLogin;
+        private Player _player;
 
         private readonly IPlayerManager _playerManager;
 
@@ -31,59 +31,9 @@ namespace MTD.Haven.Server
             _reader = new StreamReader(new NetworkStream(socket, false));
             _writer = new StreamWriter(new NetworkStream(socket, true));
             new Thread(ClientLoop).Start();
-            new Thread(ServerLoop).Start();
             _playerLogin = "";
             _player = new Player();
             _playerManager = playerManager;
-        }
-
-        void ServerLoop()
-        {
-            var minute = 0;
-            var half = 0;
-            var hour = 0;
-
-            while (true)
-            {
-                minute += Constants.PulseTimer;
-                half += Constants.PulseTimer;
-                hour += Constants.PulseTimer;
-
-                if (minute >= Constants.Minute)
-                {
-                    minute = 0;
-
-                    foreach(var connection in _connections)
-                    {
-                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another minute has passed.");
-                        connection._writer.Flush();
-                    }
-                }
-
-                if (half >= Constants.Half)
-                {
-                    half = 0;
-
-                    foreach (var connection in _connections)
-                    {
-                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another half hour has passed.");
-                        connection._writer.Flush();
-                    }
-                }
-
-                if (hour >= Constants.Hour)
-                {
-                    hour = 0;
-
-                    foreach (var connection in _connections)
-                    {
-                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another hour has passed.");
-                        connection._writer.Flush();
-                    }
-                }
-                Console.WriteLine(minute);
-                Thread.Sleep(Constants.PulseTimer);
-            }
         }
 
         void ClientLoop()
@@ -146,7 +96,7 @@ namespace MTD.Haven.Server
 
                 if (_player == null)
                 {
-                    throw new Exception();
+                    throw new Exception("Player is null. Why :(");
                 }
 
                 _player.IsOnline = true;

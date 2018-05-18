@@ -37,14 +37,12 @@ namespace MTD.Haven.DiscordBot
                 .AddTransient<IPlayerManager, PlayerManager>()
                 .BuildServiceProvider();
 
-            await InstallCommandsAsync();
+            await InstallCommandsAsync().ConfigureAwait(false);
 
             await _client.LoginAsync(TokenType.Bot, token);
             await _client.StartAsync();
 
-            await Task.Delay(-1);
-
-            await Task.Delay(-1);
+            await Task.Delay(-1).ConfigureAwait(false);
         }
 
         public async Task InstallCommandsAsync()
@@ -56,13 +54,26 @@ namespace MTD.Haven.DiscordBot
         private async Task HandleCommandAsync(SocketMessage messageParam)
         {
             var message = messageParam as SocketUserMessage;
-            if (message == null) return;
+
+            if (message == null)
+            {
+                return;
+            }
+
             int argPos = 0;
-            if (!(message.HasCharPrefix('.', ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos))) return;
+
+            if (!(message.HasCharPrefix('.', ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)))
+            {
+                return;
+            }
+
             var context = new SocketCommandContext(_client, message);
             var result = await _commands.ExecuteAsync(context, argPos, _services);
+
             if (!result.IsSuccess)
+            {
                 await context.Channel.SendMessageAsync(result.ErrorReason);
+            }
         }
 
         private Task Log(LogMessage msg)
