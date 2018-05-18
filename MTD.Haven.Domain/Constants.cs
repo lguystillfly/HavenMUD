@@ -2,14 +2,14 @@
 {
     public static class Constants
     {
-        public const string PlayerDirectory = @"C:\temp\Haven\Players\";
-        public const string RoomDirectory = @"C:\temp\Haven\Rooms\";
-        public const string ExitDirectory = @"C:\temp\Haven\Exits\";
-        public const string AreaDirectory = @"C:\temp\Haven\Areas\";
-        public const string RegionDirectory = @"C:\temp\Haven\Regions\";
-        public const int PulseTimer = 1000;
-        public const int Minute = 60000;
-        public const int Half = 1800000;
-        public const int Hour = 3600000;
+        public static readonly string PlayerDirectory = @"C:\temp\Haven\Players\";
+        public static readonly string RoomDirectory = @"C:\temp\Haven\Rooms\";
+        public static readonly string ExitDirectory = @"C:\temp\Haven\Exits\";
+        public static readonly string AreaDirectory = @"C:\temp\Haven\Areas\";
+        public static readonly string RegionDirectory = @"C:\temp\Haven\Regions\";
+        public static readonly int PulseTimer = 1000;
+        public static readonly int Minute = 60000;
+        public static readonly int Half = 1800000;
+        public static readonly int Hour = 3600000;
     }
 }

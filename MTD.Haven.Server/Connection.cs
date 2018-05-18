@@ -16,10 +16,10 @@ namespace MTD.Haven.Server
     public class Connection
     {
         static object _bigLock = new object();
-        Socket _socket;
-        private StreamReader _reader;
-        private StreamWriter _writer;
-        private List<Connection> _connections = new List<Connection>();
+        private readonly Socket _socket;
+        private readonly StreamReader _reader;
+        public readonly StreamWriter _writer;
+        public readonly List<Connection> _connections = new List<Connection>();
         private string _playerLogin;
         private Player _player;
 

@@ -53,9 +53,7 @@ namespace MTD.Haven.DiscordBot
 
         private async Task HandleCommandAsync(SocketMessage messageParam)
         {
-            var message = messageParam as SocketUserMessage;
-
-            if (message == null)
+            if (!(messageParam is SocketUserMessage message))
             {
                 return;
             }
