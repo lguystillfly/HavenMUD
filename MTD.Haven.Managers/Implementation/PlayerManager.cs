@@ -1,6 +1,5 @@
 ﻿using MTD.Haven.Dals;
 using MTD.Haven.Domain.Models.Entities;
-using System;
 using System.Collections.Generic;
 
 namespace MTD.Haven.Managers.Implementation

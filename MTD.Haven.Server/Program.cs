@@ -5,43 +5,49 @@ using MTD.Haven.Domain;
 using MTD.Haven.Managers;
 using MTD.Haven.Managers.Implementation;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
 namespace MTD.Haven.Server
 {
-    class Program
+    internal class Program
     {
         private const int PortNumber = 4000;
         private const int BacklogSize = 20;
-        private static IPAddress localAddr = IPAddress.Parse("127.0.0.1");
 
-        private static Connection _connection = null;
-        private static TcpListener server = null;
+        //private static readonly IPAddress LocalAddr = IPAddress.Parse("100.104.10.17");
+        private static readonly IPAddress LocalAddr = IPAddress.Parse("127.0.0.1");
+        private static TcpListener _server;
 
-        static void Main(string[] args)
+        public List<Connection> Connections = new List<Connection>();
+
+        private static void Main() => new Program().Start();
+
+        public void Start()
         {
             var serviceProvider = new ServiceCollection()
             .AddSingleton<IPlayerDal, PlayerDal>()
             .AddSingleton<IPlayerManager, PlayerManager>()
+            .AddSingleton(Connections)
             .BuildServiceProvider();
 
             try
             {
-
-                server = new TcpListener(localAddr, PortNumber);
-                server.Start(BacklogSize);
+                _server = new TcpListener(LocalAddr, PortNumber);
+                _server.Start(BacklogSize);
 
                 new Thread(ServerLoop).Start();
 
                 while (true)
                 {
                     Console.WriteLine("Waiting for a connection... ");
-                    var client = server.AcceptTcpClient();
+                    var client = _server.AcceptTcpClient();
                     Console.WriteLine("Connected!");
 
-                    _connection = new Connection(client, serviceProvider.GetRequiredService<IPlayerManager>());
+                    // ReSharper disable once ObjectCreationAsStatement
+                    new Connection(client, serviceProvider.GetRequiredService<IPlayerManager>(), Connections);
                 }
             }
             catch (SocketException e)
@@ -51,11 +57,11 @@ namespace MTD.Haven.Server
             finally
             {
                 // Stop listening for new clients.
-                server.Stop();
+                _server.Stop();
             }
         }
 
-        static void ServerLoop()
+        private void ServerLoop()
         {
             var minute = 0;
             var half = 0;
@@ -71,10 +77,10 @@ namespace MTD.Haven.Server
                 {
                     minute = 0;
 
-                    foreach (var connection in _connection._connections)
+                    foreach (var connection in Connections)
                     {
-                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another minute has passed.");
-                        connection._writer.Flush();
+                        connection.Writer.WriteLine($"{DateTime.UtcNow} - Another minute has passed.");
+                        connection.Writer.Flush();
                     }
                 }
 
@@ -82,10 +88,10 @@ namespace MTD.Haven.Server
                 {
                     half = 0;
 
-                    foreach (var connection in _connection._connections)
+                    foreach (var connection in Connections)
                     {
-                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another half hour has passed.");
-                        connection._writer.Flush();
+                        connection.Writer.WriteLine($"{DateTime.UtcNow} - Another half hour has passed.");
+                        connection.Writer.Flush();
                     }
                 }
 
@@ -93,15 +99,18 @@ namespace MTD.Haven.Server
                 {
                     hour = 0;
 
-                    foreach (var connection in _connection._connections)
+                    foreach (var connection in Connections)
                     {
-                        connection._writer.WriteLine($"{DateTime.UtcNow} - Another hour has passed.");
-                        connection._writer.Flush();
+                        connection.Writer.WriteLine($"{DateTime.UtcNow} - Another hour has passed.");
+                        connection.Writer.Flush();
                     }
                 }
                 Console.WriteLine(minute);
                 Thread.Sleep(Constants.PulseTimer);
             }
+            // ReSharper disable once FunctionNeverReturns
         }
     }
 }
+
+

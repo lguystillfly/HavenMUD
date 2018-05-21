@@ -16,42 +16,45 @@ namespace MTD.Haven.Server
 {
     public class Connection : IDisposable
     {
-        static object _bigLock = new object();
+        private static readonly object BigLock = new object();
         private readonly TcpClient _client;
         private readonly StreamReader _reader;
-        public readonly StreamWriter _writer;
-        public readonly List<Connection> _connections = new List<Connection>();
+        public readonly StreamWriter Writer;
         private string _playerLogin;
         private Player _player;
 
         private readonly IPlayerManager _playerManager;
 
-        public Connection(TcpClient client, IPlayerManager playerManager)
-        { 
+        private readonly List<Connection> _connections;
+
+        public Connection(TcpClient client, IPlayerManager playerManager, List<Connection> connections)
+        {
             _client = client;
-            _reader = new StreamReader(_client.GetStream());
-            _writer = new StreamWriter(_client.GetStream());
+            Stream stream = _client.GetStream();
+            Writer = new StreamWriter(stream);
+            _reader = new StreamReader(Writer.BaseStream);
             new Thread(ClientLoop).Start();
             _playerLogin = "";
             _player = new Player();
             _playerManager = playerManager;
+            _connections = connections;
         }
 
         void ClientLoop()
         {
             try
             {
-                lock (_bigLock)
+                lock (BigLock)
                 {
                     OnConnect();
                 }
                 while (true)
                 {
-                    lock (_bigLock)
+                    lock (BigLock)
                     {
                         foreach (Connection conn in _connections)
                         {
-                            conn._writer.Flush();
+                            conn.Writer.Flush();
                         }
                     }
 
@@ -61,7 +64,7 @@ namespace MTD.Haven.Server
                         break;
                     }
 
-                    lock (_bigLock)
+                    lock (BigLock)
                     {
                         ProcessLine(line);
                     }
@@ -73,7 +76,7 @@ namespace MTD.Haven.Server
             }
             finally
             {
-                lock (_bigLock)
+                lock (BigLock)
                 {
                     _client?.Close();
 
@@ -84,8 +87,8 @@ namespace MTD.Haven.Server
 
         void OnConnect()
         {
-            _writer.WriteLine("Please enter your name: ");
-            _writer.Flush();
+            Writer.WriteLine("Please enter your name: ");
+            Writer.Flush();
             _playerLogin = _reader.ReadLine();
 
             try
@@ -102,21 +105,29 @@ namespace MTD.Haven.Server
             }
             catch(Exception)
             {
-                _player.Id = Guid.NewGuid();
-                _player.Name = _playerLogin;
-                _player.Title = "is here.";
-                _player.CreatedDate = DateTime.UtcNow;
-                _player.ModifiedDate = DateTime.UtcNow;
-                _player.LastLogin = DateTime.UtcNow;
-                _player.CurrentRoom = 1;
-                _player.IsOnline = true;
+                if (_player != null)
+                {
+                    _player.Id = Guid.NewGuid();
+                    _player.Name = _playerLogin;
+                    _player.Title = "is here.";
+                    _player.CreatedDate = DateTime.UtcNow;
+                    _player.ModifiedDate = DateTime.UtcNow;
+                    _player.LastLogin = DateTime.UtcNow;
+                    _player.CurrentRoom = 1;
+                    _player.IsOnline = true;
+                }
             }
 
             SavePlayer(_player);
 
-            _writer.WriteLine($"Welcome, {_player.Name}!");
+            Writer.WriteLine($"Welcome, {_player.Name}!");
 
             DisplayRoom(_player.CurrentRoom);
+
+            foreach (Connection conn in _connections)
+            {
+                conn.Writer.WriteLine($"{_player.Name} has entered the Realm.");
+            }
 
             _connections.Add(this);
         }
@@ -158,7 +169,7 @@ namespace MTD.Haven.Server
                 builder.AppendLine("No one");
             }
 
-            _writer.WriteLine(builder.ToString());
+            Writer.WriteLine(builder.ToString());
         }
 
         void OnDisconnect()
@@ -181,7 +192,7 @@ namespace MTD.Haven.Server
                 builder.AppendLine("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
                 builder.AppendLine($"{_connections.Count} players online.");
 
-                _writer.WriteLine(builder.ToString());
+                Writer.WriteLine(builder.ToString());
             }
             else if(line.ToLower().StartsWith("say "))
             {
@@ -189,7 +200,7 @@ namespace MTD.Haven.Server
                 {
                     if (conn._player.CurrentRoom == _player.CurrentRoom)
                     {
-                        conn._writer.WriteLine($"{_player.Name} says, '{line.Replace("say ", "").Trim()}'");
+                        conn.Writer.WriteLine($"{_player.Name} says, '{line.Replace("say ", "").Trim()}'");
                     }
                 }
             }
@@ -200,7 +211,7 @@ namespace MTD.Haven.Server
                 _player.Title = title;
                 File.WriteAllText($"{Constants.PlayerDirectory}{_playerLogin}.json", JsonConvert.SerializeObject(_player));
 
-                _writer.WriteLine("Your new title has been set.");
+                Writer.WriteLine("Your new title has been set.");
             }
             else if(line.ToLower().Equals("look"))
             {
@@ -230,26 +241,24 @@ namespace MTD.Haven.Server
                     case "e":
                         direction = CompassDirection.East;
                         break;
-                    default:
-                        break;
                 }
 
                 var newRoom = room.Exits.FirstOrDefault(e => e.Direction == direction);
 
                 if (newRoom == null)
                 {
-                    _writer.WriteLine("There is no exist that way.");
+                    Writer.WriteLine("There is no exist that way.");
                 }
                 else
                 {
-                    _writer.WriteLine("There is an exit that way.");
+                    Writer.WriteLine("There is an exit that way.");
                     _player.Move(newRoom.RoomTo);
                     DisplayRoom(_player.CurrentRoom);
                 }
             }
             else
             {
-                _writer.WriteLine("Unknown Command.");
+                Writer.WriteLine("Unknown Command.");
             }
         }
 
@@ -287,7 +296,7 @@ namespace MTD.Haven.Server
         {
             _client?.Dispose();
             _reader?.Dispose();
-            _writer?.Dispose();
+            Writer?.Dispose();
         }
     }
 }
