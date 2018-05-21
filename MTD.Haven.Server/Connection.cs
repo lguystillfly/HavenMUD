@@ -10,13 +10,14 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using MTD.Haven.Domain.Enumerations;
 
 namespace MTD.Haven.Server
 {
     public class Connection : IDisposable
     {
         static object _bigLock = new object();
-        private readonly Socket _socket;
+        private readonly TcpClient _client;
         private readonly StreamReader _reader;
         public readonly StreamWriter _writer;
         public readonly List<Connection> _connections = new List<Connection>();
@@ -25,11 +26,11 @@ namespace MTD.Haven.Server
 
         private readonly IPlayerManager _playerManager;
 
-        public Connection(Socket socket, IPlayerManager playerManager)
-        {
-            _socket = socket;
-            _reader = new StreamReader(new NetworkStream(socket, false));
-            _writer = new StreamWriter(new NetworkStream(socket, true));
+        public Connection(TcpClient client, IPlayerManager playerManager)
+        { 
+            _client = client;
+            _reader = new StreamReader(_client.GetStream());
+            _writer = new StreamWriter(_client.GetStream());
             new Thread(ClientLoop).Start();
             _playerLogin = "";
             _player = new Player();
@@ -74,10 +75,7 @@ namespace MTD.Haven.Server
             {
                 lock (_bigLock)
                 {
-                    if (_socket != null)
-                    {
-                        _socket.Close();
-                    }
+                    _client?.Close();
 
                     OnDisconnect();
                 }
@@ -208,6 +206,47 @@ namespace MTD.Haven.Server
             {
                 DisplayRoom(_player.CurrentRoom);
             }
+            else if (line.ToLower().Equals("north") || line.ToLower().Equals("n") ||
+                     line.ToLower().Equals("east") || line.ToLower().Equals("e") ||
+                     line.ToLower().Equals("south") || line.ToLower().Equals("s") ||
+                     line.ToLower().Equals("west") || line.ToLower().Equals("w"))
+            {
+
+                var room = GetRoomById(_player.CurrentRoom);
+
+                var direction = CompassDirection.North;
+
+                switch (line.ToLower())
+                {
+                    case "south":
+                    case "s":
+                        direction = CompassDirection.South;
+                        break;
+                    case "west":
+                    case "w":
+                        direction = CompassDirection.West;
+                        break;
+                    case "east":
+                    case "e":
+                        direction = CompassDirection.East;
+                        break;
+                    default:
+                        break;
+                }
+
+                var newRoom = room.Exits.FirstOrDefault(e => e.Direction == direction);
+
+                if (newRoom == null)
+                {
+                    _writer.WriteLine("There is no exist that way.");
+                }
+                else
+                {
+                    _writer.WriteLine("There is an exit that way.");
+                    _player.Move(newRoom.RoomTo);
+                    DisplayRoom(_player.CurrentRoom);
+                }
+            }
             else
             {
                 _writer.WriteLine("Unknown Command.");
@@ -246,7 +285,7 @@ namespace MTD.Haven.Server
 
         public void Dispose()
         {
-            _socket?.Dispose();
+            _client?.Dispose();
             _reader?.Dispose();
             _writer?.Dispose();
         }

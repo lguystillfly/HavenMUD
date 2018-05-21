@@ -12,7 +12,7 @@ namespace MTD.Haven.Domain.Models.Entities
         public int Movement { get; set; }
         public int CurrentRoom { get; set; }
 
-        void Move(int id)
+        public void Move(int id)
         {
             CurrentRoom = id;
         }

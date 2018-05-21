@@ -15,8 +15,10 @@ namespace MTD.Haven.Server
     {
         private const int PortNumber = 4000;
         private const int BacklogSize = 20;
+        private static IPAddress localAddr = IPAddress.Parse("127.0.0.1");
 
-        static Connection _connection;
+        private static Connection _connection = null;
+        private static TcpListener server = null;
 
         static void Main(string[] args)
         {
@@ -25,16 +27,31 @@ namespace MTD.Haven.Server
             .AddSingleton<IPlayerManager, PlayerManager>()
             .BuildServiceProvider();
 
-            Socket server = new Socket(AddressFamily.InterNetwork,
-            SocketType.Stream, ProtocolType.Tcp);
-            server.Bind(new IPEndPoint(IPAddress.Any, PortNumber));
-            server.Listen(BacklogSize);
-            new Thread(ServerLoop).Start();
-
-            while (true)
+            try
             {
-                Socket conn = server.Accept();
-                _connection = new Connection(conn, serviceProvider.GetRequiredService<IPlayerManager>());
+
+                server = new TcpListener(localAddr, PortNumber);
+                server.Start(BacklogSize);
+
+                new Thread(ServerLoop).Start();
+
+                while (true)
+                {
+                    Console.WriteLine("Waiting for a connection... ");
+                    var client = server.AcceptTcpClient();
+                    Console.WriteLine("Connected!");
+
+                    _connection = new Connection(client, serviceProvider.GetRequiredService<IPlayerManager>());
+                }
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine("SocketException: {0}", e);
+            }
+            finally
+            {
+                // Stop listening for new clients.
+                server.Stop();
             }
         }
 
